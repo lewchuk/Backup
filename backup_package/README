@@ -1,0 +1,6 @@
+Stephen Lewchuk
+stephen.lewchuk@gmail.com
+
+This script is a work in progress backup application.  It does incremental
+backups to speed up the process and reduce wasted space.  The data is stored
+in a sqlite database.
