@@ -109,7 +109,7 @@ def run_backup(source,dest,force=False, dry_run=False):
     if db.exists():
         db.connect()
         last_backup = db.session.query(BackupHistory).order_by(BackupHistory.revision.desc()).first()
-        if last_backup.in_progress and not force:
+        if last_backup and last_backup.in_progress and not force:
 
             message = "Backup: %s\nLast Backup: %s\nIt appears an error occurred during the last backup.\n" +\
               "Please run fixup_backup to correct the problem.\n"+ \
