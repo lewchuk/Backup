@@ -1,0 +1,1 @@
+This program is designed to perform an incremental backup of an entire directory tree.  The data is backed up only when it changes with those changes tracked with an SQLite database in the backup location.  This project is a work in progress and is provided with no guarantee.
