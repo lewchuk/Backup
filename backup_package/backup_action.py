@@ -13,7 +13,7 @@ from datetime import datetime
 from copy_action import copy_relative
 import simplejson
 
-version = "0.0.3"
+version = "0.0.4"
 """ Changes at x.x.x indicate minor ungrades which will not require any migration except updating scripts.
     Changes at x.x indicate significant upgrades which will require migration.
     Changes at x indicate major upgrades, may not be compatible with previous versions.
