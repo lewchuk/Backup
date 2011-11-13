@@ -12,6 +12,10 @@ import argparse
 import os
 import __init__ as init
 
+import backup_action
+import migrate_action
+import restore_action
+
 def existing_folder(value):
     if not os.path.isdir(value):
         raise argparse.ArgumentTypeError("%r is not an existing directory" % value)
@@ -27,11 +31,10 @@ def no_existing_backup(value):
         raise argparse.ArgumentTypeError("%r has an existing backup instance" % value)
     return os.path.abspath(value)
 
-def init_backup(args):
-    import backup_action
+def run_command(args):
     params = vars(args)
-    del params['func']
-    backup_action.initiate_backup(**params)
+    function = params.pop('func')
+    function(**params)
 
 if __name__ == '__main__':
 
@@ -42,8 +45,13 @@ if __name__ == '__main__':
     init_parser = subparsers.add_parser('init', help="initialize a backup", description="creates the settings for a new database which can be used with the other commands.  No backup will be made just the folder and sqlite db.")
     init_parser.add_argument('source', help="folder to backup", type=existing_folder)
     init_parser.add_argument('dest', metavar='destination', help="location store backup", type=no_existing_backup)
-    init_parser.add_argument('--exclude', help="a relative path to exlude from the backup", type=str, action="append")
-    init_parser.set_defaults(func=init_backup)
+    init_parser.add_argument('--exclude', help="an absolute path to exlude from the backup", type=str, action="append", default=[])
+    init_parser.add_argument('--follow_symbolic', help="instruct backups to follow symbolic links in source directory", action="store_true", default=False)
+    init_parser.set_defaults(func=backup_action.initiate_backup)
+
+    migrate_parser = subparsers.add_parser('migrate', help='migrate a backup', description="if possible updates a backup to the version compatible with this script.")
+    migrate_parser.add_argument('backup', help='location of backup instance', type=existing_backup)
+    migrate_parser.set_defaults(func=migrate_action.migrate_backup)
 
     args = parser.parse_args()
-    args.func(args)
+    run_command(args)

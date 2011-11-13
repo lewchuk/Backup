@@ -13,12 +13,12 @@ if __name__ == '__main__':
     parser = OptionParser(usage="usage: %prog [options]")
     parser.add_option("-d","--directory", action="append", dest="dirs", help="the directories to backup")
     (options,args) = parser.parse_args()
-        
+
     if not options.dirs:
         print "Insufficient directories"
         raw_input("Press any key to continue...")
         exit()
-    
+
     if (os.path.exists("S:\\")):
 
         for dir in options.dirs:

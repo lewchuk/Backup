@@ -6,6 +6,7 @@ Created on Dec 22, 2009
 
 from backup_util import generate_time_stamp, generate_log_stamp, determine_size, open_log, close_log
 from backup_util import log_string as log
+import backup_util as util
 from database_action import *
 from os.path import join as pjoin
 from os.path import getsize as getfsize
@@ -55,25 +56,28 @@ def  initiate_backup(source,dest,**options):
     return True
 
 def add_option(db, **options):
+    exclude = options.get('exclude', [])
+    uni_excl = [unicode(os.path.abspath(exl)) for exl in exclude]
 
-    if 'exclude' in options:
-        excluded = options['exclude']
-        uni_excl = []
-        if excluded:
-            for excl in excluded:
-                uni_excl.append(unicode(os.path.normpath(excl)))
+    exclude_entry = db.session.query(BackupInfo).filter_by(property_name="exclude").first()
+    if not exclude_entry:
+        exclude_entry = BackupInfo('exclude','[]')
+        db.session.add(exclude_entry)
 
-        exclude_entry = db.session.query(BackupInfo).filter_by(property_name="exclude").first()
-        if not exclude_entry:
-            exclude_entry = BackupInfo('exclude','[]')
-            db.session.add(exclude_entry)
+    existing = simplejson.loads(exclude_entry.property_value)
+    existing.extend(uni_excl)
 
-        existing = simplejson.loads(exclude_entry.property_value)
-        existing.extend(uni_excl)
+    json_str = simplejson.dumps(existing)
+    exclude_entry.property_value = json_str
+    db.session.commit()
 
-        json_str = simplejson.dumps(existing)
-        exclude_entry.property_value = json_str
-        db.session.commit()
+    symbolic_entry = db.session.query(BackupInfo).filter_by(property_name="follow_symbolic").first()
+    if not symbolic_entry:
+        symbolic_entry = BackupInfo('follow_symbolic', simplejson.dumps(False))
+        db.session.add(symbolic_entry)
+
+    follow_symbolic = options.get('follow_symbolic', None) or simplejson.loads(symbolic_entry.property_value)
+    symbolic_entry.property_value = simplejson.dumps(follow_symbolic)
 
 def modify_backup(destination,**options):
     dest = unicode(os.path.normpath(destination))
@@ -88,16 +92,13 @@ def modify_backup(destination,**options):
     db.session.commit()
     db.session.close()
 
-def run_backup(source,dest,force=False, dry_run=False):
+def run_backup(dest,force=False, dry_run=False):
     """ Runs a backup of the source directory to the destination directory
-
-    source The source for the backup.
 
     dest The destination for the backup.
 
     """
 
-    source = unicode(os.path.normpath(source))
     dest = unicode(os.path.normpath(dest))
 
     time_stamp = generate_time_stamp()
@@ -118,31 +119,33 @@ def run_backup(source,dest,force=False, dry_run=False):
         return False
 
     version_entry = db.session.query(BackupInfo).filter_by(property_name="version").first()
-    ver_str = version_entry.property_value
-    if ver_str[0:ver_str.rfind('.')] != version[0:ver_str.rfind('.')]:
-        message = "The version of the backup script you are using is not compatibale\n" +\
-            "with the backup database. Please determine if a migration script exists\n" + \
-            "or find an onlder version of the scripts to run with this database."
-        print message
-        print "Database version: %s, script version: %s" % (ver_str,init.__version__)
+    version_string = version_entry.property_value
+
+
+    if not util.compare_version_strings(version_string, init.__version__):
         return False
-    elif ver_str != init.__version__:
+
+    if version_string != init.__version__:
         version_entry.property_value = init.__version__
 
     exclude_entry = db.session.query(BackupInfo).filter_by(property_name="exclude").first()
-    if not exclude_entry:
-        excluded = []
-    else:
-        excluded = simplejson.loads(exclude_entry.property_value)
+    excluded = simplejson.loads(exclude_entry.property_value)
 
-    print "Excluding: %s" % excluded
+    symbolic_entry = db.session.query(BackupInfo).filter_by(property_name="follow_symbolic").first()
+    follow_symbolic = simplejson.loads(symbolic_entry.property_value)
+
+    root_entry = db.session.query(BackupInfo).filter_by(property_name="root").first()
+    source = root_entry.property_value
 
     if not dry_run:
         db.create_backup_session(time_stamp)
 
     added = changed = removed = 0
 
-    destination = pjoin(dest,time_stamp)
+    if dry_run:
+        destination = pjoin(dest,"%s-dry" % time_stamp)
+    else:
+        destination = pjoin(dest,time_stamp)
     os.mkdir(destination)
     log_file = pjoin(destination,"log.txt")
 
@@ -154,11 +157,13 @@ def run_backup(source,dest,force=False, dry_run=False):
     log("Backup root: %s" % source)
     log("Backup dest: %s" % dest)
     log("Timestamp: %s" % time_stamp)
+    log("Excluding: %s" % excluded)
+    log("Following Symbolic Entries: %s" % follow_symbolic)
     print "Beginning Root Analysis...\n"
 
     files = []
 
-    collect_files(source,'',files,excluded = excluded,dry_run = dry_run)
+    collect_files(source,'',files,excluded = excluded, dry_run = dry_run, follow_symbolic = follow_symbolic)
 
     size = 0.0
     copy_files = []
@@ -245,7 +250,7 @@ def run_backup(source,dest,force=False, dry_run=False):
         db.session.close()
     close_log()
 
-def collect_files(root,source,files,excluded = None, dry_run = False, level = 0):
+def collect_files(root,source,files,excluded = None, dry_run = False, level = 0, follow_symbolic=False):
     excluded = excluded or []
 
     if source.startswith("$"):
@@ -258,6 +263,9 @@ def collect_files(root,source,files,excluded = None, dry_run = False, level = 0)
             norm = unicode(os.path.normpath(fpath))
             if norm in excluded:
                 log("Skipping: %s" % fpath)
+                continue
+            if os.path.islink(fpath) and not follow_symbolic:
+                log("Skipping symbolic: %s" % fpath)
                 continue
             if os.path.isfile(fpath):
                 rel_path = os.path.relpath(fpath,root)
@@ -273,4 +281,4 @@ def collect_files(root,source,files,excluded = None, dry_run = False, level = 0)
         log("Error accessing: %s" % path)
         return
     for dir in dirs:
-        collect_files(root,dir,files,excluded = excluded, dry_run = dry_run, level = level + 1)
+        collect_files(root,dir,files,excluded = excluded, dry_run = dry_run, level = level + 1, follow_symbolic=follow_symbolic)

@@ -14,4 +14,4 @@ restore is located in restore_action.run_restore.
 
 Other operations include modify_backup, fixup and rollback.
 """
-__version__ = "0.0.4"
+__version__ = "0.1.0"

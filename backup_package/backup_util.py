@@ -42,4 +42,25 @@ def log_string(string, print_it = True):
     
 def close_log():
     log.close()
-    
+
+def split_version_string(ver_str):
+  return [int(part) for part in ver_str.split('.')]
+
+def compare_version_strings(db_version, script_version):
+  db_ver = split_version_string(db_version)
+  sc_ver = split_version_string(script_version)
+
+  migrate_msg = """Backup created with old version of scripts, please 'python backup.py """ \
+                """migrate' on this database.\nScript version: %s\nBackup version: %s"""
+
+  upgrade_msg = """Backup created with a new version of scripts, please download the """ \
+                """lastest version of the scripts.\nScript version: %s\nBackup version: %s"""
+
+  if db_ver < [0,0,3] or db_ver[0:2] < sc_ver[0:2]:
+    print migrate_msg % (script_version, db_version)
+    return False
+  if db_ver[0:2] > sc_ver[0:2]:
+    print upgrage_msg % (script_version, db_version)
+    return False
+
+  return True

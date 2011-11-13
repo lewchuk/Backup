@@ -38,7 +38,7 @@ def copy_relative(relative_paths, source, dest, debug=True, dry_run=False):
             source_path = os.path.join(source,file)
             dest_path = os.path.join(dest,file)
             dest_folder = os.path.split(dest_path)[0]
-            if not os.path.exists(dest_folder):
+            if not os.path.exists(dest_folder) and not dry_run:
                 os.makedirs(dest_folder)
 
             if not dry_run:
