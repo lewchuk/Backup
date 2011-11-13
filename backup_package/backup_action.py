@@ -12,12 +12,8 @@ from os.path import getsize as getfsize
 from datetime import datetime
 from copy_action import copy_relative
 import simplejson
+import __init__ as init
 
-version = "0.0.4"
-""" Changes at x.x.x indicate minor ungrades which will not require any migration except updating scripts.
-    Changes at x.x indicate significant upgrades which will require migration.
-    Changes at x indicate major upgrades, may not be compatible with previous versions.
-"""
 
 def  initiate_backup(source,dest,**options):
     """ Creates a backup system for the source to destination directory.
@@ -44,7 +40,7 @@ def  initiate_backup(source,dest,**options):
 
     db.create(source)
 
-    info_version = BackupInfo('version',version)
+    info_version = BackupInfo('version',init.__version__)
     db.session.add(info_version)
 
     add_option(db, **options)
@@ -63,8 +59,9 @@ def add_option(db, **options):
     if 'exclude' in options:
         excluded = options['exclude']
         uni_excl = []
-        for excl in excluded:
-            uni_excl.append(unicode(os.path.normpath(excl)))
+        if excluded:
+            for excl in excluded:
+                uni_excl.append(unicode(os.path.normpath(excl)))
 
         exclude_entry = db.session.query(BackupInfo).filter_by(property_name="exclude").first()
         if not exclude_entry:
@@ -127,10 +124,10 @@ def run_backup(source,dest,force=False, dry_run=False):
             "with the backup database. Please determine if a migration script exists\n" + \
             "or find an onlder version of the scripts to run with this database."
         print message
-        print "Database version: %s, script version: %s" % (ver_str,version)
+        print "Database version: %s, script version: %s" % (ver_str,init.__version__)
         return False
-    elif ver_str != version:
-        version_entry.property_value = version
+    elif ver_str != init.__version__:
+        version_entry.property_value = init.__version__
 
     exclude_entry = db.session.query(BackupInfo).filter_by(property_name="exclude").first()
     if not exclude_entry:
