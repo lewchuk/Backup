@@ -53,5 +53,11 @@ if __name__ == '__main__':
     migrate_parser.add_argument('backup', help='location of backup instance', type=existing_backup)
     migrate_parser.set_defaults(func=migrate_action.migrate_backup)
 
+    backup_parser = subparsers.add_parser('backup', help='execute a backup', description='runs a backup of the root directory for this backup.')
+    backup_parser.add_argument('dest', metavar='backup', help='location of backup instance', type=existing_backup)
+    backup_parser.add_argument('--dry_run', help='will go through the motions of a backup without actually copying files or modifying the database.', action='store_true')
+    backup_parser.add_argument('--force', help='will ignore problems left over in previous backups', action='store_true')
+    backup_parser.set_defaults(func=backup_action.run_backup)
+
     args = parser.parse_args()
     run_command(args)
