@@ -9,7 +9,7 @@ from backup_util import generate_log_stamp, open_log, log_string as log
 from copy_action import restore_files
 from os.path import join as pjoin
 
-def run_restore(backup,restore_point, revision=None):
+def run_restore(backup,restore_point, revision=None, unix_path=False):
     backup = unicode(backup)
     restore_point = unicode(restore_point)
     
@@ -57,7 +57,13 @@ def run_restore(backup,restore_point, revision=None):
                 del restore_map[path]
             if action == "rolled":
                 continue
-                
+
+    if unix_path:
+      restore_map_old = restore_map
+      restore_map = {}
+      for path, ts in restore_map_old.items():
+          restore_map[path.replace('\\','/')] = ts
+
     log("%s\tConverting To Time Map...\t" % generate_log_stamp())
     
     time_map = { }
@@ -79,8 +85,9 @@ def run_restore(backup,restore_point, revision=None):
         error_log_path = os.path.join(restore_point,"error-restore.log")
         error_log = open(error_log_path,'w')
         for error in errors:
-            log(error)
-            error_log.write("%s - %s - %s" % (error[0], error[1], error[2]))
+            error_string = "%s - %s - %s" % error
+            log(error_string)
+            error_log.write(error_string.encode('utf-8'))
             error_log.write("\n")
     
    
